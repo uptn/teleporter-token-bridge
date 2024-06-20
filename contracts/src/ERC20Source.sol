@@ -8,7 +8,6 @@ pragma solidity 0.8.18;
 import {TeleporterTokenSource} from "./TeleporterTokenSource.sol";
 import {IERC20Source} from "./interfaces/IERC20Source.sol";
 import {IERC20SendAndCallReceiver} from "./interfaces/IERC20SendAndCallReceiver.sol";
-import {SafeERC20TransferFrom} from "@teleporter/SafeERC20TransferFrom.sol";
 import {IERC20} from "@openzeppelin/contracts@4.8.1/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts@4.8.1/token/ERC20/utils/SafeERC20.sol";
 import {
@@ -80,7 +79,7 @@ contract ERC20Source is IERC20Source, TeleporterTokenSource {
      * @dev See {TeleportTokenSource-_deposit}
      */
     function _deposit(uint256 amount) internal virtual override returns (uint256) {
-        return SafeERC20TransferFrom.safeTransferFrom(token, amount);
+        return _safeERC20TransferFrom(token, amount);
     }
 
     /**
@@ -140,5 +139,15 @@ contract ERC20Source is IERC20Source, TeleporterTokenSource {
         if (remainingAllowance > 0) {
             token.safeTransfer(message.fallbackRecipient, remainingAllowance);
         }
+    }
+
+    function _safeERC20TransferFrom(IERC20 erc20, uint256 amount) private returns (uint256) {
+        uint256 balanceBefore = erc20.balanceOf(address(this));
+        erc20.safeTransferFrom(_msgSender(), address(this), amount);
+        uint256 balanceAfter = erc20.balanceOf(address(this));
+
+        require(balanceAfter > balanceBefore, "SafeERC20TransferFrom: balance not increased");
+
+        return balanceAfter - balanceBefore;
     }
 }
